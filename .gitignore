@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.log
+logs/
+data/mnemonic.enc
+.DS_Store
+coverage/
+.nyc_output/

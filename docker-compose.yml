@@ -22,43 +22,5 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis (可选，用于缓存)
-  redis:
-    image: redis:7-alpine
-    container_name: wallet-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-  # 钱包服务
-  wallet-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: wallet-service
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: wallet_user
-      DB_PASSWORD: wallet_password
-      DB_NAME: wallet_db
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-your-32-byte-encryption-key-here}
-      API_KEY: ${API_KEY:-your-api-key}
-      HMAC_SECRET: ${HMAC_SECRET:-your-hmac-secret}
-    depends_on:
-      mysql:
-        condition: service_healthy
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-
 volumes:
   mysql_data:
-  redis_data:

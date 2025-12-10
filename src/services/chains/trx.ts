@@ -163,9 +163,11 @@ export class TRXService implements ChainService {
 
       if (contract?.type === 'TransferContract') {
         const value = contract.parameter?.value;
-        from = this.tronWeb.address.fromHex(value.owner_address);
-        to = this.tronWeb.address.fromHex(value.to_address);
-        amount = (value.amount / 1e6).toString();
+        if (value) {
+          from = this.tronWeb.address.fromHex(value.owner_address);
+          to = this.tronWeb.address.fromHex(value.to_address);
+          amount = (value.amount / 1e6).toString();
+        }
       }
 
       return {

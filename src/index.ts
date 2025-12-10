@@ -1,5 +1,6 @@
 import express from 'express';
 import { config } from './config';
+import { initDatabase } from './database/connection';
 import { getMnemonicManager } from './services/crypto/encryption';
 import { depositService } from './services/deposit';
 import { withdrawalService } from './services/withdrawal';
@@ -54,6 +55,10 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // 启动服务
 async function start() {
   try {
+    // 初始化数据库
+    initDatabase();
+    logger.info('Database initialized');
+
     // 初始化助记词管理器
     const mnemonicManager = getMnemonicManager();
     await mnemonicManager.initialize();

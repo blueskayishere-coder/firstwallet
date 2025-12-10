@@ -1,7 +1,5 @@
-// 使用 SQLite 作为数据库（开发/测试环境）
 import Database from 'better-sqlite3';
 import path from 'path';
-import fs from 'fs';
 import logger from '../utils/logger';
 
 const dbPath = path.join(process.cwd(), 'data', 'wallet.db');
@@ -10,12 +8,6 @@ let db: Database.Database | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
-    // 确保 data 目录存在
-    const dataDir = path.dirname(dbPath);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     logger.info(`SQLite database connected: ${dbPath}`);
@@ -23,11 +15,7 @@ export function getDatabase(): Database.Database {
   return db;
 }
 
-export async function getConnection(): Promise<Database.Database> {
-  return getDatabase();
-}
-
-export async function closeConnection(): Promise<void> {
+export function closeDatabase(): void {
   if (db) {
     db.close();
     db = null;
@@ -35,33 +23,18 @@ export async function closeConnection(): Promise<void> {
   }
 }
 
-export async function query<T>(sql: string, params?: unknown[]): Promise<T> {
+export function query<T>(sql: string, params?: unknown[]): T {
   const database = getDatabase();
 
-  // 转换 MySQL 语法到 SQLite
-  let sqliteSql = sql
-    .replace(/FOR UPDATE/gi, '')  // SQLite 不需要 FOR UPDATE
-    .replace(/NOW\(\)/gi, "datetime('now')");
+  const isSelect = sql.trim().toLowerCase().startsWith('select');
 
-  const isSelect = sqliteSql.trim().toLowerCase().startsWith('select');
-  const isInsert = sqliteSql.trim().toLowerCase().startsWith('insert');
-
-  try {
-    if (isSelect) {
-      const stmt = database.prepare(sqliteSql);
-      const result = params ? stmt.all(...params) : stmt.all();
-      return result as T;
-    } else {
-      const stmt = database.prepare(sqliteSql);
-      const result = params ? stmt.run(...params) : stmt.run();
-      if (isInsert) {
-        return { insertId: Number(result.lastInsertRowid) } as T;
-      }
-      return { affectedRows: result.changes } as T;
-    }
-  } catch (error) {
-    logger.error(`SQL Error: ${sqliteSql}`, error);
-    throw error;
+  if (isSelect) {
+    const stmt = database.prepare(sql);
+    return (params ? stmt.all(...params) : stmt.all()) as T;
+  } else {
+    const stmt = database.prepare(sql);
+    const result = params ? stmt.run(...params) : stmt.run();
+    return { insertId: result.lastInsertRowid, affectedRows: result.changes } as T;
   }
 }
 
@@ -123,16 +96,9 @@ export function initDatabase(): void {
     INSERT OR IGNORE INTO address_indexes (chain, next_index) VALUES ('ETH', 0);
     INSERT OR IGNORE INTO address_indexes (chain, next_index) VALUES ('BSC', 0);
     INSERT OR IGNORE INTO address_indexes (chain, next_index) VALUES ('TRX', 0);
-
-    CREATE INDEX IF NOT EXISTS idx_wallet_user_id ON wallet_addresses(user_id);
-    CREATE INDEX IF NOT EXISTS idx_wallet_chain ON wallet_addresses(chain);
-    CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits(user_id);
-    CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status);
-    CREATE INDEX IF NOT EXISTS idx_withdrawals_user_id ON withdrawals(user_id);
-    CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);
   `);
 
   logger.info('SQLite database initialized');
 }
 
-export default { getConnection, closeConnection, query, initDatabase, getDatabase };
+export default { getDatabase, closeDatabase, query, initDatabase };
